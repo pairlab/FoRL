@@ -1,0 +1,23 @@
+name: forl
+channels:
+  - pytorch
+  - defaults
+  - nvidia/label/cuda-11.8.0
+dependencies:
+  - python=3.10
+  - pytorch-cuda=11.8
+  - cuda=11.8
+  - cuda-toolkit=11.8
+  - pandas
+  - matplotlib
+  - seaborn
+  - notebook
+  - pip
+  - pip:
+      - urdfpy
+      - usd-core
+      - hydra-core
+      - wandb
+      - black
+      - tensorboardX
+      - rl_games
