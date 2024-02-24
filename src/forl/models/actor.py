@@ -58,6 +58,7 @@ class ActorStochasticMLP(nn.Module):
             else:
                 modules.append(model_utils.get_activation_func("identity"))
 
+        self.mu_net = nn.Sequential(*modules)
 
         self.logstd = torch.nn.Parameter(
             torch.ones(action_dim, dtype=torch.float32) * logstd_init
@@ -65,6 +66,9 @@ class ActorStochasticMLP(nn.Module):
 
         self.action_dim = action_dim
         self.obs_dim = obs_dim
+
+        print(self.mu_net)
+        print(self.logstd)
 
     def get_logstd(self):
         return self.logstd

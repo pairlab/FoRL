@@ -21,7 +21,12 @@ class CriticMLP(nn.Module):
                 modules.append(model_utils.get_activation_func(activation))
                 modules.append(torch.nn.LayerNorm(self.layer_dims[i + 1]))
 
+        self.critic = nn.Sequential(*modules)
+        
         self.obs_dim = obs_dim
+
+        print(self.critic)
+
 
     def forward(self, observations):
         return self.critic(observations)
@@ -46,6 +51,9 @@ class DoubleCriticMLP(nn.Module):
             if i < len(self.layer_dims) - 2:
                 modules.append(model_utils.get_activation_func(activation))
                 modules.append(torch.nn.LayerNorm(self.layer_dims[i + 1]))
+
+        self.critic_1 = nn.Sequential(*modules)
+        self.critic_2 = nn.Sequential(*modules)
 
         self.obs_dim = obs_dim
 

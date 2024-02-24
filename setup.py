@@ -17,11 +17,11 @@ INSTALL_REQUIRES = []
 setup(
     name="forl",
     author="Ignat Georgiev",
-    author_email="ignat.m.georgiev@gmail.com"
+    author_email="ignat.m.georgiev@gmail.com",
     version="0.1.0",
     long_description=README,
     long_description_content_type="text/markdown",
-    url="https://github.com/pairlab/FoRL"
+    url="https://github.com/pairlab/FoRL",
     description="A library for for First-order Reinforcement Learning algorithms",
     keywords=["robotics", "rl"],
     include_package_data=True,
@@ -36,7 +36,7 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10"
+        "Programming Language :: Python :: 3.10",
     ],
     zip_safe=False,
 )
