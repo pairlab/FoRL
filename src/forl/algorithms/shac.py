@@ -1,15 +1,11 @@
-import sys, os
-
-
-# project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-# sys.path.append(project_dir)
-
-import time
-import copy
+import os, time, copy
 from tensorboardX import SummaryWriter
 from omegaconf import DictConfig
 from hydra.utils import instantiate
 from typing import Optional, List, Tuple
+import torch
+from torch.nn.utils.clip_grad import clip_grad_norm_
+from gym import Env
 
 from forl.utils.common import *
 import forl.utils.torch_utils as tu
@@ -17,12 +13,15 @@ from forl.utils.running_mean_std import RunningMeanStd
 from forl.utils.dataset import CriticDataset
 from forl.utils.time_report import TimeReport
 from forl.utils.average_meter import AverageMeter
-import torch
-from torch.nn.utils.clip_grad import clip_grad_norm_
-from gym import Env
 
 
 class SHAC:
+    """
+    Short Horizon Actor Critic (SHAC) algorithm based on the paper
+    Xu et al. Accelerated Policy Learning with Parallel Differentiable Simulation
+    https://arxiv.org/abs/2204.07137
+    """
+
     def __init__(
         self,
         env: Env,
@@ -60,12 +59,10 @@ class SHAC:
         assert critic_method in ["one-step", "td-lambda"]
         assert save_interval > 0
 
-        # Create environment
         self.env = env
-
         self.num_envs = self.env.num_envs
-        self.num_obs = self.env.num_obs
-        self.num_actions = self.env.num_actions
+        self.num_obs = self.env.observation_space.shape[0]
+        self.num_actions = self.env.action_space.shape[0]
         self.device = torch.device(device)
 
         self.horizon = horizon
@@ -73,7 +70,6 @@ class SHAC:
         self.actor_lr = actor_lr
         self.critic_lr = critic_lr
         self.lr_schedule = lr_schedule
-
         self.gamma = gamma
         self.lam = lam
 
@@ -111,11 +107,6 @@ class SHAC:
             critic_config,
             obs_dim=self.num_obs,
         ).to(self.device)
-
-        self.all_params = list(self.actor.parameters()) + list(self.critic.parameters())
-
-        print(self.actor.parameters())
-        print(self.critic.parameters())
 
         # initialize optimizers
         self.actor_optimizer = torch.optim.Adam(
@@ -200,25 +191,23 @@ class SHAC:
 
         actor_loss = torch.tensor(0.0, dtype=torch.float32, device=self.device)
 
-        with torch.no_grad():
-            if self.obs_rms is not None:
-                obs_rms = copy.deepcopy(self.obs_rms)
+        # copy running mean and std so that we don't change during training
+        if self.obs_rms is not None:
+            obs_rms = copy.deepcopy(self.obs_rms)
 
-            if self.ret_rms is not None:
-                ret_var = self.ret_rms.var.clone()
+        if self.ret_rms is not None:
+            ret_rms = copy.deepcopy(self.ret_rms)
 
-        # initialize trajectory to cut off gradients between episodes.
+        # initialize trajectory to cut off gradients between epochs
         try:
             obs = self.env.reset(grads=True)
         except:
             print("Your environment should have a reset method that accepts grads=True")
             raise AttributeError
 
+        # update and normalize obs
         if self.obs_rms is not None:
-            # update obs rms
-            with torch.no_grad():
-                self.obs_rms.update(obs)
-            # normalize the current obs
+            self.obs_rms.update(obs)
             obs = obs_rms.normalize(obs)
 
         # keeps track of the current length of the rollout
@@ -239,20 +228,16 @@ class SHAC:
             with torch.no_grad():
                 raw_rew = rew.clone()
 
+            # update and normalize obs
             if self.obs_rms is not None:
-                # update obs rms
-                with torch.no_grad():
-                    self.obs_rms.update(obs)
-                # normalize the current obs
+                self.obs_rms.update(obs)
                 obs = obs_rms.normalize(obs)
 
+            # update and normalize return
             if self.ret_rms is not None:
-                # update ret rms
-                with torch.no_grad():
-                    self.ret = self.ret * self.gamma + rew
-                    self.ret_rms.update(self.ret)
-
-                rew = rew / torch.sqrt(ret_var + 1e-6)
+                self.ret = self.ret * self.gamma + rew
+                self.ret_rms.update(self.ret)
+                rew = rew / torch.sqrt(ret_rms.var + 1e-6)
 
             self.episode_length += 1
             rollout_len += 1
@@ -346,7 +331,7 @@ class SHAC:
         actor_loss /= self.horizon * self.num_envs
 
         if self.ret_rms is not None:
-            actor_loss = actor_loss * torch.sqrt(ret_var + 1e-6)
+            actor_loss = actor_loss * torch.sqrt(ret_rms.var + 1e-6)
 
         self.actor_loss = actor_loss.detach().item()
 
@@ -541,7 +526,6 @@ class SHAC:
                     self.critic_batch_size,
                     self.obs_buf,
                     self.target_values,
-                    drop_last=False,
                 )
             self.time_report.end_timer("prepare critic dataset")
 

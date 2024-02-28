@@ -1,5 +1,6 @@
 from typing import Tuple
 import torch
+from torch import Tensor
 
 
 class RunningMeanStd(object):
@@ -24,14 +25,14 @@ class RunningMeanStd(object):
         return rms
 
     @torch.no_grad()
-    def update(self, arr: torch.tensor) -> None:
+    def update(self, arr: Tensor) -> None:
         batch_mean = torch.mean(arr, dim=0)
         batch_var = torch.var(arr, dim=0, unbiased=False)
         batch_count = arr.shape[0]
         self.update_from_moments(batch_mean, batch_var, batch_count)
 
     def update_from_moments(
-        self, batch_mean: torch.tensor, batch_var: torch.tensor, batch_count: int
+        self, batch_mean: Tensor, batch_var: Tensor, batch_count: int
     ) -> None:
         delta = batch_mean - self.mean
         tot_count = self.count + batch_count
@@ -55,7 +56,7 @@ class RunningMeanStd(object):
         self.var = new_var
         self.count = new_count
 
-    def normalize(self, arr: torch.tensor, un_norm=False) -> torch.tensor:
+    def normalize(self, arr: Tensor, un_norm=False) -> Tensor:
         if not un_norm:
             result = (arr - self.mean) / torch.sqrt(self.var + 1e-5)
         else:

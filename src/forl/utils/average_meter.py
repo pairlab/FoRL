@@ -14,7 +14,8 @@ class AverageMeter(nn.Module):
         if size == 0:
             return
         new_mean = torch.mean(values.float(), dim=0)
-        size = torch.clip(size, 0, self.max_size)
+        if size > self.max_size:
+            size = self.max_size
         old_size = min(self.max_size - size, self.current_size)
         size_sum = old_size + size
         self.current_size = size_sum

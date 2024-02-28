@@ -1,12 +1,9 @@
 # gradient-based policy optimization by actor critic method
 import os
 import torch
-from rl_games.algos_torch import torch_ext
-
-from rl_games.common.algo_observer import AlgoObserver
 from tensorboardX import SummaryWriter
-
-from forl import envs
+from rl_games.algos_torch import torch_ext
+from rl_games.common.algo_observer import AlgoObserver
 from rl_games.common import env_configurations, vecenv
 
 
