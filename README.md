@@ -55,7 +55,7 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 
 ## TODOs
 
-[ ] Think about simplified gym interface that is compatible with rl_games
-[ ] More dflex examples
-[ ] Add warp support
-[ ] Add AHAC algorithm
+- [ ] Think about simplified gym interface that is compatible with rl_games
+- [ ] More dflex examples
+- [ ] Add warp support
+- [ ] Add AHAC algorithm
