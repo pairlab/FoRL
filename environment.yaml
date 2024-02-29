@@ -22,3 +22,5 @@ dependencies:
       - black
       - tensorboardX
       - rl_games
+      - git+https://github.com/imgeorgiev/DiffRL.git#egg=dflex&subdirectory=dflex"
+
