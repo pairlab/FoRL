@@ -11,7 +11,7 @@ HERE = pathlib.Path(__file__).parent
 README = (HERE / "README.md").read_text()
 
 # Minimum dependencies required prior to installation
-INSTALL_REQUIRES = ["pytorch", "omegaconf", "hydra-core", "gym", "tensorboardX"]
+INSTALL_REQUIRES = ["torch", "omegaconf", "hydra-core", "gym", "tensorboardX"]
 
 # Installation operation
 setup(

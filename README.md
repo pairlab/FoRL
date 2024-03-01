@@ -18,6 +18,7 @@ Tested only on Ubuntu 22.04. Requires Python, conda and an Nvidia GPU with >12GB
 2. `cd FoRL`
 3. `conda env create -f environment.yaml`
 4. `ln -s $CONDA_PREFIX/lib $CONDA_PREFIX/lib64` (hack to get CUDA to work inside conda)
+5. `pip install -e .`
 
 ## Examples
 
@@ -55,6 +56,7 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 
 ## TODOs
 
+- [x] Upgrade python version
 - [ ] Think about simplified gym interface that is compatible with rl_games
 - [ ] More dflex examples
 - [ ] Add warp support

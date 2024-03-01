@@ -4,7 +4,7 @@ channels:
   - defaults
   - nvidia/label/cuda-11.8.0
 dependencies:
-  - python=3.8 # TODO try upgrading
+  - python=3.10
   - pytorch-cuda=11.8
   - pytorch
   - cuda=11.8
@@ -15,12 +15,11 @@ dependencies:
   - notebook
   - pip
   - pip:
-      - git+https://github.com/mmatl/urdfpy.git # hasn't released a new version in a while
-      - usd-core
       - hydra-core
       - wandb
       - black
       - tensorboardX
-      - rl_games
-      - git+https://github.com/imgeorgiev/DiffRL.git#egg=dflex&subdirectory=dflex"
+      - rl_games # used as a baseline for comparison. Not required!
+      # dflex simulator is used for examples. It is not required for the library.
+      - git+https://github.com/imgeorgiev/DiffRL.git/#subdirectory=dflex
 
