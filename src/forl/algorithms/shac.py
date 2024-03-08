@@ -13,6 +13,7 @@ from forl.utils.running_mean_std import RunningMeanStd
 from forl.utils.dataset import CriticDataset
 from forl.utils.time_report import TimeReport
 from forl.utils.average_meter import AverageMeter
+from forl.models.model_utils import Ensemble
 
 
 class SHAC:
@@ -32,6 +33,7 @@ class SHAC:
         logdir: str,
         actor_grad_norm: Optional[float] = None,  # clip grad norms during training
         critic_grad_norm: Optional[float] = None,  # clip grad norms during training
+        num_critics: int = 3,  # for critic ensembling
         actor_lr: float = 2e-3,
         critic_lr: float = 2e-3,
         betas: Tuple[float, float] = (0.7, 0.95),
@@ -103,10 +105,14 @@ class SHAC:
             action_dim=self.num_actions,
         ).to(self.device)
 
-        self.critic = instantiate(
-            critic_config,
-            obs_dim=self.num_obs,
-        ).to(self.device)
+        critics = [
+            instantiate(
+                critic_config,
+                obs_dim=self.num_obs,
+            ).to(self.device)
+            for _ in range(num_critics)
+        ]
+        self.critic = Ensemble(critics)
 
         # initialize optimizers
         self.actor_optimizer = torch.optim.Adam(
@@ -202,7 +208,9 @@ class SHAC:
         try:
             obs = self.env.reset(grads=True)
         except:
-            print("Your environment should have a reset method that accepts grads=True")
+            print_error(
+                "Your environment should have a reset method that accepts grads=True"
+            )
             raise AttributeError
 
         # update and normalize obs
@@ -246,12 +254,12 @@ class SHAC:
 
             # sanity check
             if (~torch.isfinite(real_obs)).sum() > 0:
-                print("Got inf obs")
+                print_warning("Got inf obs")
 
             if self.obs_rms is not None:
                 real_obs = obs_rms.normalize(real_obs)
 
-            next_values[i + 1] = self.critic(real_obs).squeeze(-1)
+            next_values[i + 1] = self.critic(real_obs).min(dim=0).values.squeeze()
 
             # handle terminated environments which stopped for some bad reason
             # since the reason is bad we set their value to 0
@@ -261,7 +269,7 @@ class SHAC:
 
             # sanity check
             if (next_values > 1e6).sum() > 0 or (next_values < -1e6).sum() > 0:
-                print("next value error")
+                print_error("next value error")
                 raise ValueError
 
             rew_acc[i + 1, :] = rew_acc[i, :] + gamma * rew
@@ -317,7 +325,7 @@ class SHAC:
                     rollout_len[done_env_ids] = 0
                     for id in done_env_ids:
                         if self.episode_loss[id] > 1e6 or self.episode_loss[id] < -1e6:
-                            print("ep loss error")
+                            print_error("ep loss error")
                             raise ValueError
 
                         self.episode_loss_his.append(self.episode_loss[id].item())
@@ -428,7 +436,7 @@ class SHAC:
             raise NotImplementedError
 
     def compute_critic_loss(self, batch_sample):
-        predicted_values = self.critic.predict(batch_sample["obs"]).squeeze(-2)
+        predicted_values = self.critic(batch_sample["obs"]).squeeze(-2)
         target_values = batch_sample["target_values"]
         critic_loss = ((predicted_values - target_values) ** 2).mean()
         return critic_loss
@@ -485,7 +493,7 @@ class SHAC:
 
                 # sanity check
                 if torch.isnan(self.grad_norm_before_clip):
-                    print("ERROR: NaN gradient")
+                    print_error("NaN gradient")
                     raise ValueError
 
             self.time_report.end_timer("compute actor loss")
@@ -633,9 +641,15 @@ class SHAC:
 
         self.writer.close()
 
+    # TODO might not need state dict here
     def save(self, filename):
         torch.save(
-            [self.actor, self.critic, self.obs_rms, self.ret_rms],
+            [
+                self.actor.state_dict(),
+                self.critic.state_dict(),
+                self.obs_rms,
+                self.ret_rms,
+            ],
             os.path.join(self.log_dir, "{}.pt".format(filename)),
         )
 

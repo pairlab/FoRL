@@ -14,8 +14,7 @@ shac:
   critic_lr: 5e-4
   max_epochs: 2000
   save_interval: 400
-  target_critic_alpha: 0.99
   actor_mlp:
     units: [400, 200, 100]
   critic_mlp:
-    units: [400, 200, 100]
+    units: [400, 200]

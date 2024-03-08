@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - env: dflex_cartpole
+  - env: dflex_ant
   - alg: shac
 
 general:
@@ -15,5 +15,5 @@ general:
 
 wandb:
   project:
-  entity: 
+  entity:
   group: 

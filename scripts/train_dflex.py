@@ -4,6 +4,12 @@ from hydra.core.hydra_config import HydraConfig
 from forl.utils import hydra_utils
 from hydra.utils import instantiate
 
+from IPython.core import ultratb
+import sys
+
+# For debugging
+sys.excepthook = ultratb.FormattedTB(mode="Plain", color_scheme="Neutral", call_pdb=1)
+
 
 def create_wandb_run(wandb_cfg, job_config, run_id=None):
     env_name = job_config["env"]["config"]["_target_"].split(".")[-1]

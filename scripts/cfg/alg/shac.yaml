@@ -2,14 +2,17 @@ _target_: forl.algorithms.shac.SHAC
 _recursive_: False
 actor_config:
   _target_: forl.models.actor.ActorStochasticMLP
-  units: ${resolve_child:[64,64],${env.shac.actor_mlp},units}
-  activation: elu
+  units: ${resolve_child:[400, 200, 100],${env.shac.actor_mlp},units}
+  activation_class: nn.ELU
+  init_gain: 1.0
+  init_logstd: -1.0
 critic_config:
-  _target_: forl.models.critic.DoubleCriticMLP
-  units: ${resolve_child:[64,64],${env.shac.critic_mlp},units}
-  activation: elu
+  _target_: forl.models.critic.CriticMLP
+  units: ${resolve_child:[400, 200],${env.shac.critic_mlp},units}
+  activation_class: nn.ELU
+num_critics: 3
 actor_lr: ${resolve_child:2e-3,${env.shac},actor_lr}
-critic_lr: ${resolve_child:2e-3,${env.shac},critic_lr}
+critic_lr: ${resolve_child:5e-4,${env.shac},critic_lr}
 lr_schedule: linear
 obs_rms: True
 ret_rms: False
@@ -20,7 +23,7 @@ lam: 0.95
 gamma: 0.99
 max_epochs: ${resolve_child:2000,${env.shac},max_epochs}
 horizon: 32
-actor_grad_norm: 1.0
-critic_grad_norm: 1.0
+actor_grad_norm: 1.0 # Can also be none
+critic_grad_norm: 1.0 # Can also be none
 save_interval: ${resolve_child:400,${env.shac},save_interval}
 device: ${general.device}

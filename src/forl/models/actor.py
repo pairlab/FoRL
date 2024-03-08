@@ -1,3 +1,4 @@
+from typing import Optional, Dict, Any, Union, Sequence, Type, List
 import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
@@ -6,20 +7,33 @@ from forl.models import model_utils
 
 
 class ActorDeterministicMLP(nn.Module):
-    def __init__(self, obs_dim, action_dim, units, activation: str, init_gain = 2.0**0.5):
+    def __init__(
+        self,
+        obs_dim: int,
+        action_dim: int,
+        units: List[int],
+        activation_class: Type = nn.ELU,
+        init_gain: float = 2.0**0.5,
+    ):
         super(ActorDeterministicMLP, self).__init__()
 
         self.layer_dims = [obs_dim] + units + [action_dim]
 
+        if isinstance(activation_class, str):
+            activation_class = eval(activation_class)
+        self.activation_class = activation_class
+
         init_ = lambda m: model_utils.init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), init_gain
+            m,
+            lambda x: nn.init.orthogonal_(x, init_gain),
+            lambda x: nn.init.constant_(x, 0),
         )
 
         modules = []
         for i in range(len(self.layer_dims) - 1):
             modules.append(init_(nn.Linear(self.layer_dims[i], self.layer_dims[i + 1])))
             if i < len(self.layer_dims) - 2:
-                modules.append(model_utils.get_activation_func(activation))
+                modules.append(self.activation_class())
                 modules.append(torch.nn.LayerNorm(self.layer_dims[i + 1]))
 
         self.actor = nn.Sequential(*modules)
@@ -34,41 +48,41 @@ class ActorDeterministicMLP(nn.Module):
 class ActorStochasticMLP(nn.Module):
     def __init__(
         self,
-        obs_dim,
-        action_dim,
-        units,
-        activation: str,
-        init_gain = 2.0**0.5,
-        logstd_init: float = -1.0,
+        obs_dim: int,
+        action_dim: int,
+        units: List[int],
+        activation_class: Type = nn.ELU,
+        init_gain: float = 1.0,
+        init_logstd: float = -1.0,
     ):
         super(ActorStochasticMLP, self).__init__()
 
         self.layer_dims = [obs_dim] + units + [action_dim]
 
-        init_ = lambda m: model_utils.init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0), init_gain
-        )
+        if isinstance(activation_class, str):
+            activation_class = eval(activation_class)
+        self.activation_class = activation_class
 
         modules = []
         for i in range(len(self.layer_dims) - 1):
-            modules.append(init_(nn.Linear(self.layer_dims[i], self.layer_dims[i + 1])))
+            modules.append(nn.Linear(self.layer_dims[i], self.layer_dims[i + 1]))
             if i < len(self.layer_dims) - 2:
-                modules.append(model_utils.get_activation_func(activation))
+                modules.append(self.activation_class())
                 modules.append(torch.nn.LayerNorm(self.layer_dims[i + 1]))
             else:
-                modules.append(model_utils.get_activation_func("identity"))
+                modules.append(torch.nn.Identity())
 
         self.mu_net = nn.Sequential(*modules)
 
         self.logstd = torch.nn.Parameter(
-            torch.ones(action_dim, dtype=torch.float32) * logstd_init
+            torch.ones(action_dim, dtype=torch.float32) * init_logstd
         )
 
         self.action_dim = action_dim
         self.obs_dim = obs_dim
 
-        print(self.mu_net)
-        print(self.logstd)
+        for param in self.parameters():
+            param.data *= init_gain
 
     def get_logstd(self):
         return self.logstd
