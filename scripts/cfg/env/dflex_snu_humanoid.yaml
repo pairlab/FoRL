@@ -1,0 +1,20 @@
+config:
+  _target_: dflex.envs.SNUHumanoidEnv
+  render: ${general.render}
+  device: ${general.device}
+  num_envs: 64
+  no_grad: False
+  stochastic_init: True
+  episode_length: 1000
+  MM_caching_frequency: 8
+
+
+shac:
+  actor_lr: 2e-3
+  critic_lr: 5e-4
+  max_epochs: 5000
+  save_interval: 500
+  actor_mlp:
+    units: [400, 200, 100]
+  critic_mlp:
+    units: [400, 200]

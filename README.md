@@ -57,7 +57,12 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 ## TODOs
 
 - [x] Upgrade python version
+- [x] Vectorize critic
+- [x] Try Mish activation
+- [ ] Try stop gradient on actor 
+- [ ] Try regressin values
+- [ ] Verify safe/load
 - [ ] Think about simplified gym interface that is compatible with rl_games
-- [ ] More dflex examples
+- [x] More dflex examples
 - [ ] Add warp support
 - [ ] Add AHAC algorithm
