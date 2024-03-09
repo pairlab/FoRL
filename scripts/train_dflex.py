@@ -2,6 +2,7 @@ import hydra, os, wandb, yaml
 from omegaconf import DictConfig, OmegaConf, open_dict
 from hydra.core.hydra_config import HydraConfig
 from forl.utils import hydra_utils
+from forl.utils.common import seeding
 from hydra.utils import instantiate
 
 from IPython.core import ultratb
@@ -51,6 +52,8 @@ def train(cfg: DictConfig):
     # patch code to make jobs log in the correct directory when doing multirun
     logdir = HydraConfig.get()["runtime"]["output_dir"]
     logdir = os.path.join(logdir, cfg.general.logdir)
+
+    seeding(cfg.general.seed, False)
 
     env = instantiate(cfg.env.config, logdir=logdir)
     print("num_envs = ", env.num_envs)
