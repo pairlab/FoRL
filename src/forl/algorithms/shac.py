@@ -81,11 +81,11 @@ class SHAC:
 
         self.obs_rms = None
         if obs_rms:
-            self.obs_rms = RunningMeanStd(shape=(self.num_obs), device=self.device)
+            self.obs_rms = RunningMeanStd(shape=(self.num_obs,), device=self.device)
 
         self.ret_rms = None
         if ret_rms:
-            self.ret_rms = RunningMeanStd(shape=(), device=self.device)
+            self.ret_rms = RunningMeanStd(shape=(1,), device=self.device)
 
         env_name = self.env.__class__.__name__
         self.name = self.__class__.__name__ + "_" + env_name
@@ -169,6 +169,7 @@ class SHAC:
         self.value_loss = torch.inf
         self.grad_norm_before_clip = torch.inf
         self.grad_norm_after_clip = torch.inf
+        self.critic_grad_norm_val = torch.inf
         self.early_termination = 0
         self.episode_end = 0
         self.last_log_steps = 0
@@ -195,14 +196,11 @@ class SHAC:
             (self.horizon + 1, self.num_envs), dtype=torch.float32, device=self.device
         )
 
-        actor_loss = torch.tensor(0.0, dtype=torch.float32, device=self.device)
+        actor_loss = torch.zeros(self.num_envs, dtype=torch.float32, device=self.device)
 
         # copy running mean and std so that we don't change during training
         if self.obs_rms is not None:
             obs_rms = copy.deepcopy(self.obs_rms)
-
-        if self.ret_rms is not None:
-            ret_rms = copy.deepcopy(self.ret_rms)
 
         # initialize trajectory to cut off gradients between epochs
         try:
@@ -232,6 +230,7 @@ class SHAC:
             obs, rew, done, info = self.env.step(torch.tanh(actions))
             term = info["termination"]
             trunc = info["truncation"]
+            real_obs = info["obs_before_reset"]
 
             with torch.no_grad():
                 raw_rew = rew.clone()
@@ -240,24 +239,14 @@ class SHAC:
             if self.obs_rms is not None:
                 self.obs_rms.update(obs)
                 obs = obs_rms.normalize(obs)
-
-            # update and normalize return
-            if self.ret_rms is not None:
-                self.ret = self.ret * self.gamma + rew
-                self.ret_rms.update(self.ret)
-                rew = rew / torch.sqrt(ret_rms.var + 1e-6)
+                real_obs = obs_rms.normalize(real_obs)
 
             self.episode_length += 1
             rollout_len += 1
 
-            real_obs = info["obs_before_reset"]
-
             # sanity check
             if (~torch.isfinite(real_obs)).sum() > 0:
                 print_warning("Got inf obs")
-
-            if self.obs_rms is not None:
-                real_obs = obs_rms.normalize(real_obs)
 
             next_values[i + 1] = self.critic(real_obs).min(dim=0).values.squeeze()
 
@@ -282,17 +271,19 @@ class SHAC:
 
             if i < self.horizon - 1:
                 # first terminate all rollouts which are 'done'
-                actor_loss += (
+                returns = (
                     -rew_acc[i + 1, done_env_ids]
                     - self.gamma
                     * gamma[done_env_ids]
                     * next_values[i + 1, done_env_ids]
-                ).sum()
+                )
+                actor_loss[done_env_ids] += returns
             else:
                 # terminate all envs because we reached the end of our rollout
-                actor_loss += (
+                returns = (
                     -rew_acc[i + 1, :] - self.gamma * gamma * next_values[i + 1, :]
-                ).sum()
+                )
+                actor_loss += returns
 
             # compute gamma for next step
             gamma = gamma * self.gamma
@@ -336,10 +327,13 @@ class SHAC:
 
         self.horizon_length_meter.update(rollout_len)
 
-        actor_loss /= self.horizon * self.num_envs
-
         if self.ret_rms is not None:
-            actor_loss = actor_loss * torch.sqrt(ret_rms.var + 1e-6)
+            self.ret_rms.update(actor_loss)
+            actor_loss = self.ret_rms.normalize(actor_loss)
+        else:
+            actor_loss /= self.horizon
+
+        actor_loss = actor_loss.mean()
 
         self.actor_loss = actor_loss.detach().item()
 
@@ -552,6 +546,7 @@ class SHAC:
                     for params in self.critic.parameters():
                         params.grad.nan_to_num_(0.0, 0.0, 0.0)
 
+                    self.critic_grad_norm_val = tu.grad_norm(self.critic.parameters())
                     if self.critic_grad_norm:
                         clip_grad_norm_(self.critic.parameters(), self.critic_grad_norm)
 
@@ -604,6 +599,7 @@ class SHAC:
                 ac_stddev = self.actor.get_logstd().exp().mean().detach().cpu().item()
                 self.log_scalar("ac_std", ac_stddev)
                 self.log_scalar("actor_grad_norm", self.grad_norm_before_clip)
+                self.log_scalar("critic_grad_norm", self.critic_grad_norm_val)
                 self.log_scalar("episode_end", self.episode_end)
                 self.log_scalar("early_termination", self.early_termination)
             else:
