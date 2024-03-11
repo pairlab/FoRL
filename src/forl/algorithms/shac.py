@@ -331,7 +331,7 @@ class SHAC:
 
         if self.ret_rms is not None:
             self.ret_rms.update(actor_loss)
-            actor_loss = self.ret_rms.normalize(actor_loss)
+            actor_loss /= torch.sqrt(self.ret_rms.var + 1e-5)
         else:
             actor_loss /= self.horizon
 
@@ -589,7 +589,7 @@ class SHAC:
                     print_info(
                         "save best policy with loss {:.2f}".format(mean_policy_loss)
                     )
-                    self.save(f"best_policy_rew{-mean_policy_loss:.2f}")
+                    self.save(f"best_policy")
                     self.best_policy_loss = mean_policy_loss
 
                 self.log_scalar("policy_loss", mean_policy_loss)
@@ -610,27 +610,26 @@ class SHAC:
                 mean_episode_length = 0
 
             print(
-                "iter {:}/{:}, ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, avg rollout {:.1f}, total steps {:}, fps {:.2f}, actor_loss{:.2f}/{:.2f} value loss {:.2f}, grad norm before/after clip {:.2f}/{:.2f}".format(
+                "[{:}/{:}]  R:{:.2f}  T:{:.1f}  H:{:.1f}  S:{:}  FPS:{:0.0f}  pi_loss:{:.2f}/{:.2f}  pi_grad:{:.2f}/{:.2f}  v_loss:{:.2f}".format(
                     self.iter_count,
                     self.max_epochs,
-                    mean_policy_loss,
-                    mean_policy_discounted_loss,
+                    -mean_policy_loss,
                     mean_episode_length,
                     self.mean_horizon,
                     self.step_count,
                     fps,
                     self.actor_loss_before,
                     self.actor_loss,
-                    self.value_loss,
                     self.grad_norm_before_clip,
                     self.grad_norm_after_clip,
+                    self.value_loss,
                 )
             )
 
             self.writer.flush()
 
             if self.iter_count % self.save_interval == 0:
-                name = self.name + f"_iter{self.iter_count}_rew{-mean_policy_loss:.2f}"
+                name = self.name + f"_iter{self.iter_count}_rew{-mean_policy_loss:0.0f}"
                 self.save(name)
 
         self.time_report.end_timer("algorithm")
@@ -644,25 +643,31 @@ class SHAC:
     # TODO might not need state dict here
     def save(self, filename):
         torch.save(
-            [
-                self.actor.state_dict(),
-                self.critic.state_dict(),
-                self.obs_rms,
-                self.ret_rms,
-            ],
+            {
+                "actor": self.actor.state_dict(),
+                "critic": self.critic.state_dict(),
+                "obs_rms": self.obs_rms,
+                "ret_rms": self.ret_rms,
+            },
             os.path.join(self.log_dir, "{}.pt".format(filename)),
         )
 
     def load(self, path):
         print("Loading policy from", path)
         checkpoint = torch.load(path)
-        self.actor = checkpoint[0].to(self.device)
-        self.critic = checkpoint[1].to(self.device)
+        self.actor.load_state_dict(checkpoint["actor"])
+        self.actor.to(self.device)
+        self.critic.load_state_dict(checkpoint["critic"])
+        self.critic.to(self.device)
         self.obs_rms = (
-            checkpoint[2].to(self.device) if checkpoint[2] is not None else None
+            checkpoint["obs_rms"].to(self.device)
+            if checkpoint["obs_rms"] is not None
+            else None
         )
         self.ret_rms = (
-            checkpoint[3].to(self.device) if checkpoint[3] is not None else None
+            checkpoint["ret_rms"].to(self.device)
+            if checkpoint["ret_rms"] is not None
+            else None
         )
 
     def log_scalar(self, scalar, value):

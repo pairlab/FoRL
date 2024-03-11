@@ -54,6 +54,11 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 
 * [Short Horizon Actor Critic (SHAC)](https://short-horizon-actor-critic.github.io/)
 
+
+## Notes
+
+- Due to the nature of GPU acceleration, it is impossible to currently impossible to guarantee deterministic experiments. You can make them "less random" by using `seeding(seed, True)` but that slows down GPUs.
+
 ## TODOs
 
 - [x] Upgrade python version
@@ -62,8 +67,14 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 - [x] Try stop gradient on actor - hurts 
 - [x] Try regressing values - hurts
 - [ ] Try return normalization
+- [ ] Tune critic grad norm
 - [ ] Verify safe/load
 - [ ] Think about simplified gym interface that is compatible with rl_games
 - [x] More dflex examples
 - [ ] Add warp support
 - [ ] Add AHAC algorithm
+
+
+
+
+## Further references
