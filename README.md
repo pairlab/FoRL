@@ -58,9 +58,10 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 
 - [x] Upgrade python version
 - [x] Vectorize critic
-- [x] Try Mish activation
-- [ ] Try stop gradient on actor 
-- [ ] Try regressin values
+- [x] Try Mish activation - helps
+- [x] Try stop gradient on actor - hurts 
+- [x] Try regressing values - hurts
+- [ ] Try return normalization
 - [ ] Verify safe/load
 - [ ] Think about simplified gym interface that is compatible with rl_games
 - [x] More dflex examples
