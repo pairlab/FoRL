@@ -34,7 +34,7 @@ class ActorDeterministicMLP(nn.Module):
             modules.append(init_(nn.Linear(self.layer_dims[i], self.layer_dims[i + 1])))
             if i < len(self.layer_dims) - 2:
                 modules.append(self.activation_class())
-                modules.append(torch.nn.LayerNorm(self.layer_dims[i + 1]))
+                modules.append(nn.LayerNorm(self.layer_dims[i + 1]))
 
         self.actor = nn.Sequential(*modules)
 
@@ -68,9 +68,9 @@ class ActorStochasticMLP(nn.Module):
             modules.append(nn.Linear(self.layer_dims[i], self.layer_dims[i + 1]))
             if i < len(self.layer_dims) - 2:
                 modules.append(self.activation_class())
-                modules.append(torch.nn.LayerNorm(self.layer_dims[i + 1]))
+                modules.append(nn.LayerNorm(self.layer_dims[i + 1]))
             else:
-                modules.append(torch.nn.Identity())
+                modules.append(nn.Identity())
 
         self.mu_net = nn.Sequential(*modules)
 

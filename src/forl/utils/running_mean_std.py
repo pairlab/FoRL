@@ -59,6 +59,7 @@ class RunningMeanStd(object):
     def normalize(self, arr: Tensor, un_norm=False) -> Tensor:
         if not un_norm:
             result = (arr - self.mean) / torch.sqrt(self.var + 1e-5)
+            result = result.clamp(-5.0, 5.0)
         else:
             result = arr * torch.sqrt(self.var + 1e-5) + self.mean
         return result

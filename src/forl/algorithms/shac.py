@@ -327,6 +327,8 @@ class SHAC:
 
         self.horizon_length_meter.update(rollout_len)
 
+        self.actor_loss_before = actor_loss.mean().item()
+
         if self.ret_rms is not None:
             self.ret_rms.update(actor_loss)
             actor_loss = self.ret_rms.normalize(actor_loss)
@@ -608,7 +610,7 @@ class SHAC:
                 mean_episode_length = 0
 
             print(
-                "iter {:}/{:}, ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, avg rollout {:.1f}, total steps {:}, fps {:.2f}, value loss {:.2f}, grad norm before/after clip {:.2f}/{:.2f}".format(
+                "iter {:}/{:}, ep loss {:.2f}, ep discounted loss {:.2f}, ep len {:.1f}, avg rollout {:.1f}, total steps {:}, fps {:.2f}, actor_loss{:.2f}/{:.2f} value loss {:.2f}, grad norm before/after clip {:.2f}/{:.2f}".format(
                     self.iter_count,
                     self.max_epochs,
                     mean_policy_loss,
@@ -617,6 +619,8 @@ class SHAC:
                     self.mean_horizon,
                     self.step_count,
                     fps,
+                    self.actor_loss_before,
+                    self.actor_loss,
                     self.value_loss,
                     self.grad_norm_before_clip,
                     self.grad_norm_after_clip,

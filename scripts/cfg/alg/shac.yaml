@@ -3,13 +3,13 @@ _recursive_: False
 actor_config:
   _target_: forl.models.actor.ActorStochasticMLP
   units: ${resolve_child:[400, 200, 100],${env.shac.actor_mlp},units}
-  activation_class: nn.ELU
+  activation_class: nn.Mish
   init_gain: 1.0
   init_logstd: -1.0
 critic_config:
   _target_: forl.models.critic.CriticMLP
   units: ${resolve_child:[400, 200],${env.shac.critic_mlp},units}
-  activation_class: nn.ELU
+  activation_class: nn.Mish
 num_critics: 3
 actor_lr: ${resolve_child:2e-3,${env.shac},actor_lr}
 critic_lr: ${resolve_child:5e-4,${env.shac},critic_lr}
