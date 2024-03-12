@@ -53,6 +53,7 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 ## Current algorithms
 
 * [Short Horizon Actor Critic (SHAC)](https://short-horizon-actor-critic.github.io/)
+* [Adaptive Horizon Actor Critic (SHAC)](https://adaptive-horizon-actor-critic.github.io/)
 
 
 ## Notes
@@ -72,7 +73,7 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 - [ ] Think about simplified gym interface that is compatible with rl_games
 - [x] More dflex examples
 - [ ] Add warp support
-- [ ] Add AHAC algorithm
+- [x] Add AHAC algorithm
 - [ ] Try smooth reward functions
 
 
