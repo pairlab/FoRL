@@ -73,6 +73,7 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 - [x] More dflex examples
 - [ ] Add warp support
 - [ ] Add AHAC algorithm
+- [ ] Try smooth reward functions
 
 
 
