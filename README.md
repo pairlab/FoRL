@@ -66,9 +66,9 @@ We try to comply with the normnal [gym interface](https://www.gymlibrary.dev/api
 - [x] Try Mish activation - helps
 - [x] Try stop gradient on actor - hurts 
 - [x] Try regressing values - hurts
-- [ ] Try return normalization
-- [ ] Tune critic grad norm
-- [ ] Verify safe/load
+- [x] Try return normalization - stabler
+- [x] Tune critic grad norm - higher values seem to help
+- [x] Verify safe/load
 - [ ] Think about simplified gym interface that is compatible with rl_games
 - [x] More dflex examples
 - [ ] Add warp support
