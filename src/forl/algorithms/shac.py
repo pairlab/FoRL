@@ -6,6 +6,8 @@ from typing import Optional, List, Tuple
 import torch
 from torch.nn.utils.clip_grad import clip_grad_norm_
 from gym import Env
+import tensordict
+from tensordict import TensorDict
 
 from forl.utils.common import *
 import forl.utils.torch_utils as tu
@@ -14,6 +16,8 @@ from forl.utils.dataset import CriticDataset
 from forl.utils.time_report import TimeReport
 from forl.utils.average_meter import AverageMeter
 from forl.models.model_utils import Ensemble
+
+tensordict.set_lazy_legacy(False).set()
 
 
 class SHAC:
@@ -47,6 +51,7 @@ class SHAC:
         critic_method: str = "td-lambda",
         save_interval: int = 500,  # how often to save policy
         device: str = "cuda",
+        save_data: bool = False,
     ):
         # sanity check parameters
         assert horizon > 0
@@ -66,6 +71,11 @@ class SHAC:
         self.num_obs = self.env.observation_space.shape[0]
         self.num_actions = self.env.action_space.shape[0]
         self.device = torch.device(device)
+        self.save_data = save_data
+        if save_data:
+            self.episode_data = []
+            if env.early_termination:
+                raise RuntimeError("Environment should not have early_termination=True")
 
         self.horizon = horizon
         self.max_epochs = max_epochs
@@ -87,8 +97,8 @@ class SHAC:
         if ret_rms:
             self.ret_rms = RunningMeanStd(shape=(1,), device=self.device)
 
-        env_name = self.env.__class__.__name__
-        self.name = self.__class__.__name__ + "_" + env_name
+        self.env_name = self.env.__class__.__name__
+        self.name = self.__class__.__name__ + "_" + self.env_name
 
         self.actor_grad_norm = actor_grad_norm
         self.critic_grad_norm = critic_grad_norm
@@ -237,6 +247,41 @@ class SHAC:
             trunc = info["truncation"]
             real_obs = info["obs_before_reset"]
             primal = info["primal"]
+
+            if self.save_data:
+                with torch.no_grad():
+                    td = TensorDict(
+                        dict(
+                            obs=real_obs.clone().unsqueeze(0),
+                            action=actions.clone().unsqueeze(0),
+                            reward=rew.clone().unsqueeze(0),
+                        ),
+                        (1,),
+                    )
+                    self.per_episode_data.append(td)
+
+                    if done.all():
+                        print("Episode terminated and dumping data")
+                        data = TensorDict(
+                            torch.cat(self.per_episode_data),
+                            batch_size=(self.env.episode_length + 1, self.num_envs),
+                        ).permute(1, 0)
+                        self.episode_data.append(data)
+
+                        # now need to reset per_episode_data
+                        self.per_episode_data = []
+
+                        # save data with nan action and rewards
+                        a = torch.full_like(
+                            torch.zeros(1, self.num_envs, self.num_actions), torch.nan
+                        ).to(self.device)
+                        r = torch.full_like(
+                            torch.zeros(1, self.num_envs), torch.nan
+                        ).to(self.device)
+                        td = TensorDict(
+                            dict(obs=obs.clone().unsqueeze(0), action=a, reward=r), (1,)
+                        )
+                        self.per_episode_data = [td]
 
             with torch.no_grad():
                 raw_rew = rew.clone()
@@ -463,7 +508,7 @@ class SHAC:
         self.time_report.start_timer("algorithm")
 
         # initializations
-        self.env.reset()
+        obs = self.env.reset()
         self.episode_loss = torch.zeros(
             self.num_envs, dtype=torch.float32, device=self.device
         )
@@ -479,6 +524,21 @@ class SHAC:
         self.episode_gamma = torch.ones(
             self.num_envs, dtype=torch.float32, device=self.device
         )
+        self.per_episode_data = []
+
+        if self.save_data:
+            with torch.no_grad():
+                # save data with nan action and rewards
+                act = torch.full_like(
+                    torch.zeros(1, self.num_envs, self.num_actions), torch.nan
+                ).to(self.device)
+                rew = torch.full_like(torch.zeros(1, self.num_envs), torch.nan).to(
+                    self.device
+                )
+                td = TensorDict(
+                    dict(obs=obs.clone().unsqueeze(0), action=act, reward=rew), (1,)
+                )
+                self.per_episode_data.append(td)
 
         def actor_closure():
             self.actor_optimizer.zero_grad()
@@ -650,6 +710,11 @@ class SHAC:
         self.time_report.report()
 
         self.save("final_policy")
+
+        if self.save_data:
+            data = torch.cat(self.episode_data)
+            eps = len(data)
+            torch.save(data, f"{self.log_dir}/ep_data_{self.env_name}_ep{eps}.pt")
 
         self.writer.close()
 
